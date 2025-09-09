@@ -39,3 +39,7 @@ Given the implementation details provided as an argument, do this:
 6. Report results with branch name, file paths, and generated artifacts.
 
 Use absolute paths with the repository root for all file operations to avoid path issues.
+
+7. If using Codex:
+   - Run `scripts/update-codex-md.sh` to update or create `CODEX.md` from the new plan
+   - Alternatively, run `scripts/update-agent-context.sh codex` to keep Codex context in sync
