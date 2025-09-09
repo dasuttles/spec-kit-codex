@@ -319,6 +319,17 @@ If you are using Codex CLI, the layout will mirror this, with Codex-specific fil
     └── tasks-template.md
 ```
 
+### Codex CLI Quickstart
+
+- Install: Codex CLI (see link in prerequisites)
+- Init: `specify init <project_name> --ai codex` or `specify init --here --ai codex`
+- Use commands:
+  - In a Codex session, run `/specify`, `/plan`, `/tasks` to drive the workflow
+  - Or open the prompt files in `.codex/commands/` (e.g., `specify.md`, `plan.md`, `tasks.md`) and run them with your feature/context
+- Keep context in sync:
+  - After `/plan`: run `scripts/update-codex-md.sh` (or `scripts/update-agent-context.sh codex`) to refresh `CODEX.md`
+  - After `/tasks`: run `scripts/update-codex-md.sh` again if the plan changed during task generation
+
 Note: Depending on your AI agent, you will see the corresponding agent file (e.g., `CLAUDE.md`, `CODEX.md`, `GEMINI.md`, or `.github/copilot-instructions.md`).
 
 Check the `research.md` document to ensure that the right tech stack is used, based on your instructions. You can ask Claude Code to refine it if any of the components stand out, or even have it check the locally-installed version of the platform/framework you want to use (e.g., .NET).
