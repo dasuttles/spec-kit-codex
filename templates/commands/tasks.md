@@ -61,3 +61,7 @@ Given the context provided as an argument, do this:
 Context for task generation: {ARGS}
 
 The tasks.md should be immediately executable - each task must be specific enough that an LLM can complete it without additional context.
+
+If using Codex:
+- Run `scripts/update-codex-md.sh` to sync `CODEX.md` after generating tasks
+- Or run `scripts/update-agent-context.sh codex` to update only the Codex context file

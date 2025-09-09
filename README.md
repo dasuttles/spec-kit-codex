@@ -110,7 +110,7 @@ Our research and experimentation focus on:
 ## 🔧 Prerequisites
 
 - **Linux/macOS** (or WSL2 on Windows)
-- AI coding agent: [Claude Code](https://www.anthropic.com/claude-code), [GitHub Copilot](https://code.visualstudio.com/), or [Gemini CLI](https://github.com/google-gemini/gemini-cli)
+- AI coding agent: [Claude Code](https://www.anthropic.com/claude-code), [Codex CLI](https://github.com/openai/codex), [GitHub Copilot](https://code.visualstudio.com/), or [Gemini CLI](https://github.com/google-gemini/gemini-cli)
 - [uv](https://docs.astral.sh/uv/) for package management
 - [Python 3.11+](https://www.python.org/downloads/)
 - [Git](https://git-scm.com/downloads)
@@ -145,16 +145,19 @@ You will be prompted to select the AI agent you are using. You can also proactiv
 
 ```bash
 specify init <project_name> --ai claude
+specify init <project_name> --ai codex
 specify init <project_name> --ai gemini
 specify init <project_name> --ai copilot
 # Or in current directory:
 specify init --here --ai claude
+specify init --here --ai codex
 ```
 
-The CLI will check if you have Claude Code or Gemini CLI installed. If you do not, or you prefer to get the templates without checking for the right tools, use `--ignore-agent-tools` with your command:
+The CLI will check if you have Claude Code, Codex CLI, or Gemini CLI installed. If you do not, or you prefer to get the templates without checking for the right tools, use `--ignore-agent-tools` with your command:
 
 ```bash
 specify init <project_name> --ai claude --ignore-agent-tools
+specify init <project_name> --ai codex --ignore-agent-tools
 ```
 
 ### **STEP 1:** Bootstrap the project
@@ -220,6 +223,8 @@ At this stage, your project folder contents should resemble the following:
     └── tasks-template.md
 ```
 
+Note: If you’re using Codex, your scripts directory will also include `scripts/update-codex-md.sh`.
+
 ### **STEP 2:** Functional specification clarification
 
 With the baseline specification created, you can go ahead and clarify any of the requirements that were not captured properly within the first shot attempt. For example, you could use a prompt like this within the same Claude Code session:
@@ -279,6 +284,53 @@ The output of this step will include a number of implementation detail documents
     ├── spec-template.md
     └── tasks-template.md
 ```
+
+If you are using Codex CLI, the layout will mirror this, with Codex-specific files and folder names:
+
+```text
+.
+├── CODEX.md
+├── .codex
+│   └── commands
+├── memory
+│   ├── constitution.md
+│   └── constitution_update_checklist.md
+├── scripts
+│   ├── check-task-prerequisites.sh
+│   ├── common.sh
+│   ├── create-new-feature.sh
+│   ├── get-feature-paths.sh
+│   ├── setup-plan.sh
+│   └── update-codex-md.sh
+├── specs
+│   └── 001-create-taskify
+│       ├── contracts
+│       │   ├── api-spec.json
+│       │   └── signalr-spec.md
+│       ├── data-model.md
+│       ├── plan.md
+│       ├── quickstart.md
+│       ├── research.md
+│       └── spec.md
+└── templates
+    ├── CODEX-template.md
+    ├── plan-template.md
+    ├── spec-template.md
+    └── tasks-template.md
+```
+
+### Codex CLI Quickstart
+
+- Install: Codex CLI (see link in prerequisites)
+- Init: `specify init <project_name> --ai codex` or `specify init --here --ai codex`
+- Use commands:
+  - In a Codex session, run `/specify`, `/plan`, `/tasks` to drive the workflow
+  - Or open the prompt files in `.codex/commands/` (e.g., `specify.md`, `plan.md`, `tasks.md`) and run them with your feature/context
+- Keep context in sync:
+  - After `/plan`: run `scripts/update-codex-md.sh` (or `scripts/update-agent-context.sh codex`) to refresh `CODEX.md`
+  - After `/tasks`: run `scripts/update-codex-md.sh` again if the plan changed during task generation
+
+Note: Depending on your AI agent, you will see the corresponding agent file (e.g., `CLAUDE.md`, `CODEX.md`, `GEMINI.md`, or `.github/copilot-instructions.md`).
 
 Check the `research.md` document to ensure that the right tech stack is used, based on your instructions. You can ask Claude Code to refine it if any of the components stand out, or even have it check the locally-installed version of the platform/framework you want to use (e.g., .NET).
 

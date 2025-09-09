@@ -93,6 +93,47 @@ jobs:
           echo "⚠️ agent_templates/claude folder not found"
         fi
         
+        # Helper: generate commands from templates/commands for specific agent
+        generate_commands() {
+          local ext=$1
+          local arg_format=$2
+          local output_dir=$3
+
+          mkdir -p "$output_dir"
+
+          for template in templates/commands/*.md; do
+            if [[ -f "$template" ]]; then
+              name=$(basename "$template" .md)
+              description=$(awk '/^description:/ {gsub(/^description: *"?/, ""); gsub(/"$/, ""); print; exit}' "$template" | tr -d '\r')
+              content=$(awk '/^---$/{if(++count==2) start=1; next} start' "$template" | sed "s/{ARGS}/$arg_format/g")
+
+              # For Codex and Claude we emit plain markdown prompt files
+              {
+                echo "$content"
+              } > "$output_dir/$name.md"
+            fi
+          done
+        }
+
+        # Create Codex CLI package
+        echo "Creating Codex CLI package..."
+        mkdir -p sdd-codex-package
+        cp -r sdd-package-base/* sdd-codex-package/
+        # Generate .codex/commands from templates
+        mkdir -p sdd-codex-package/.codex/commands
+        generate_commands "md" "\$ARGUMENTS" "sdd-codex-package/.codex/commands"
+        if [ -d "agent_templates/codex" ]; then
+          cp -r agent_templates/codex sdd-codex-package/.codex
+          # Move CODEX.md to root for easier access if present
+          if [ -f "sdd-codex-package/.codex/CODEX.md" ]; then
+            mv sdd-codex-package/.codex/CODEX.md sdd-codex-package/CODEX.md
+            echo "✓ Moved CODEX.md to root of Codex package"
+          fi
+          echo "✓ Added Codex CLI extras from agent_templates/codex ($(find agent_templates/codex -type f | wc -l) files)"
+        else
+          echo "⚠️ agent_templates/codex folder not found"
+        fi
+
         # Create Gemini CLI package
         echo "Creating Gemini CLI package..."
         mkdir -p sdd-gemini-package
@@ -130,6 +171,8 @@ jobs:
         echo "Creating archive files..."
         cd sdd-claude-package && zip -r ../spec-kit-template-claude-${{ steps.version.outputs.new_version }}.zip . && cd ..
         
+        cd sdd-codex-package && zip -r ../spec-kit-template-codex-${{ steps.version.outputs.new_version }}.zip . && cd ..
+
         cd sdd-gemini-package && zip -r ../spec-kit-template-gemini-${{ steps.version.outputs.new_version }}.zip . && cd ..
         
         cd sdd-copilot-package && zip -r ../spec-kit-template-copilot-${{ steps.version.outputs.new_version }}.zip . && cd ..
@@ -137,6 +180,7 @@ jobs:
         echo ""
         echo "📦 Packages created:"
         echo "Claude: $(ls -lh spec-kit-template-claude-*.zip | awk '{print $5}')"
+        echo "Codex: $(ls -lh spec-kit-template-codex-*.zip | awk '{print $5}')"
         echo "Gemini: $(ls -lh spec-kit-template-gemini-*.zip | awk '{print $5}')"
         echo "Copilot: $(ls -lh spec-kit-template-copilot-*.zip | awk '{print $5}')"
         echo "Copilot: $(ls -lh sdd-template-copilot-*.zip | awk '{print $5}')"
@@ -156,6 +200,7 @@ jobs:
         
         # Count files in each directory
         CLAUDE_COUNT=$(find agent_templates/claude -type f 2>/dev/null | wc -l || echo "0")
+        CODEX_COUNT=$(find agent_templates/codex -type f 2>/dev/null | wc -l || echo "0")
         GEMINI_COUNT=$(find agent_templates/gemini -type f 2>/dev/null | wc -l || echo "0")
         COPILOT_COUNT=$(find agent_templates/copilot -type f 2>/dev/null | wc -l || echo "0")
         MEMORY_COUNT=$(find memory -type f 2>/dev/null | wc -l || echo "0")
@@ -164,11 +209,12 @@ jobs:
         cat > release_notes.md << EOF
         Template release ${{ steps.version.outputs.new_version }}
         
-        Updated specification-driven development templates for GitHub Copilot, Claude Code, and Gemini CLI.
+        Updated specification-driven development templates for GitHub Copilot, Claude Code, Codex CLI, and Gemini CLI.
         
         Download the template for your preferred AI assistant:
         - spec-kit-template-copilot-${{ steps.version.outputs.new_version }}.zip
         - spec-kit-template-claude-${{ steps.version.outputs.new_version }}.zip
+        - spec-kit-template-codex-${{ steps.version.outputs.new_version }}.zip  
         - spec-kit-template-gemini-${{ steps.version.outputs.new_version }}.zip  
         
         Changes since $LAST_TAG:
@@ -184,6 +230,7 @@ jobs:
         gh release create ${{ steps.version.outputs.new_version }} \
           spec-kit-template-copilot-${{ steps.version.outputs.new_version }}.zip \
           spec-kit-template-claude-${{ steps.version.outputs.new_version }}.zip \
+          spec-kit-template-codex-${{ steps.version.outputs.new_version }}.zip \
           spec-kit-template-gemini-${{ steps.version.outputs.new_version }}.zip \
           --title "Spec Kit Templates - $VERSION_NO_V" \
           --notes-file release_notes.md

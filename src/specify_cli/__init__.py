@@ -51,7 +51,8 @@ import readchar
 AI_CHOICES = {
     "copilot": "GitHub Copilot",
     "claude": "Claude Code",
-    "gemini": "Gemini CLI"
+    "gemini": "Gemini CLI",
+    "codex": "Codex CLI",
 }
 
 # ASCII Art Banner
@@ -406,10 +407,17 @@ def download_template_from_github(ai_assistant: str, download_dir: Path, *, verb
         raise typer.Exit(1)
     
     # Find the template asset for the specified AI assistant
-    pattern = f"spec-kit-template-{ai_assistant}"
+    # Prefer native Codex asset; gracefully fall back to Claude if unavailable
+    assets = release_data.get("assets", [])
+    preferred_patterns: list[str]
+    if ai_assistant == "codex":
+        preferred_patterns = ["spec-kit-template-codex", "spec-kit-template-claude"]
+    else:
+        preferred_patterns = [f"spec-kit-template-{ai_assistant}"]
+
     matching_assets = [
-        asset for asset in release_data.get("assets", [])
-        if pattern in asset["name"] and asset["name"].endswith(".zip")
+        asset for asset in assets
+        if any(p in asset["name"] for p in preferred_patterns) and asset["name"].endswith(".zip")
     ]
     
     if not matching_assets:
@@ -638,7 +646,7 @@ def download_and_extract_template(project_path: Path, ai_assistant: str, is_curr
 @app.command()
 def init(
     project_name: str = typer.Argument(None, help="Name for your new project directory (optional if using --here)"),
-    ai_assistant: str = typer.Option(None, "--ai", help="AI assistant to use: claude, gemini, or copilot"),
+    ai_assistant: str = typer.Option(None, "--ai", help="AI assistant to use: claude, gemini, copilot, or codex"),
     ignore_agent_tools: bool = typer.Option(False, "--ignore-agent-tools", help="Skip checks for AI agent tools like Claude Code"),
     no_git: bool = typer.Option(False, "--no-git", help="Skip git repository initialization"),
     here: bool = typer.Option(False, "--here", help="Initialize project in the current directory instead of creating a new one"),
@@ -648,7 +656,7 @@ def init(
     
     This command will:
     1. Check that required tools are installed (git is optional)
-    2. Let you choose your AI assistant (Claude Code, Gemini CLI, or GitHub Copilot)
+    2. Let you choose your AI assistant (Claude Code, Codex CLI, Gemini CLI, or GitHub Copilot)
     3. Download the appropriate template from GitHub
     4. Extract the template to a new project directory or current directory
     5. Initialize a fresh git repository (if not --no-git and no existing repo)
@@ -661,6 +669,7 @@ def init(
         specify init my-project --ai copilot --no-git
         specify init --ignore-agent-tools my-project
         specify init --here --ai claude
+        specify init --here --ai codex
         specify init --here
     """
     # Show banner first
@@ -737,6 +746,13 @@ def init(
             if not check_tool("gemini", "Install from: https://github.com/google-gemini/gemini-cli"):
                 console.print("[red]Error:[/red] Gemini CLI is required for Gemini projects")
                 agent_tool_missing = True
+        elif selected_ai == "codex":
+            # For Codex CLI, probe via `codex --version` for a positive detection
+            try:
+                _ = run_command(["codex", "--version"], check_return=True, capture=True)
+            except Exception:
+                console.print("[red]Error:[/red] Codex CLI not found or not working. Install from: https://github.com/openai/codex")
+                agent_tool_missing = True
         # GitHub Copilot check is not needed as it's typically available in supported IDEs
         
         if agent_tool_missing:
@@ -771,6 +787,76 @@ def init(
         tracker.attach_refresh(lambda: live.update(tracker.render()))
         try:
             download_and_extract_template(project_path, selected_ai, here, verbose=False, tracker=tracker)
+
+            # Auto-create agent context file for Codex if missing (parity with other agents)
+            if selected_ai == "codex":
+                codex_file = project_path / "CODEX.md"
+                if not codex_file.exists():
+                    try:
+                        tpl = project_path / "templates" / "agent-file-template.md"
+                        if tpl.exists():
+                            content = tpl.read_text(encoding="utf-8")
+                            from datetime import datetime
+                            today = datetime.now().strftime("%Y-%m-%d")
+                            replacements = {
+                                "[PROJECT NAME]": project_path.name,
+                                "[DATE]": today,
+                                "[EXTRACTED FROM ALL PLAN.MD FILES]": "- Pending plan (to be updated after /plan)",
+                                "[ACTUAL STRUCTURE FROM PLANS]": "src/\ntests/",
+                                "[ONLY COMMANDS FOR ACTIVE TECHNOLOGIES]": "# Add commands for your active technologies",
+                                "[LANGUAGE-SPECIFIC, ONLY FOR LANGUAGES IN USE]": "Follow standard conventions",
+                                "[LAST 3 FEATURES AND WHAT THEY ADDED]": "- Initial setup",
+                            }
+                            for k, v in replacements.items():
+                                content = content.replace(k, v)
+                        else:
+                            # Minimal fallback content
+                            content = (
+                                f"# {project_path.name} Development Guidelines\n\n"
+                                "Auto-generated. Last updated: n/a\n\n"
+                                "## Commands\nAdd commands for your active technologies here.\n\n"
+                                "<!-- MANUAL ADDITIONS START -->\n<!-- MANUAL ADDITIONS END -->\n"
+                            )
+                        codex_file.write_text(content, encoding="utf-8")
+                        # Record as part of extraction summary
+                        tracker.update_detail = getattr(tracker, "update_detail", None)
+                    except Exception:
+                        # Non-fatal: continue even if file creation fails
+                        pass
+
+                # Ensure .codex/commands exist (generate or mirror Claude commands)
+                try:
+                    codex_cmd_dir = project_path / ".codex" / "commands"
+                    if not codex_cmd_dir.exists():
+                        codex_cmd_dir.mkdir(parents=True, exist_ok=True)
+                        # Preferred: generate from templates/commands if available in package (usually excluded in release)
+                        cmds_tpl_dir = project_path / "templates" / "commands"
+                        if cmds_tpl_dir.exists():
+                            def _extract_body(text: str) -> str:
+                                # Strip simple front-matter --- blocks; keep body
+                                parts = text.split("---\n")
+                                if len(parts) >= 3:
+                                    body = "---\n".join(parts[2:])
+                                else:
+                                    body = text
+                                return body.replace("{ARGS}", "$ARGUMENTS").strip()
+                            for name in ["specify", "plan", "tasks"]:
+                                src = cmds_tpl_dir / f"{name}.md"
+                                if src.exists():
+                                    body = _extract_body(src.read_text(encoding="utf-8"))
+                                    (codex_cmd_dir / f"{name}.md").write_text(body, encoding="utf-8")
+                        else:
+                            # Fallback: mirror from .claude/commands if present
+                            claude_cmd_dir = project_path / ".claude" / "commands"
+                            if claude_cmd_dir.exists():
+                                for name in ["specify", "plan", "tasks"]:
+                                    src = claude_cmd_dir / f"{name}.md"
+                                    if src.exists():
+                                        dst = codex_cmd_dir / f"{name}.md"
+                                        dst.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+                except Exception:
+                    # Best-effort; continue
+                    pass
 
             # Git step
             if not no_git:
@@ -816,6 +902,13 @@ def init(
         steps_lines.append("   - Use /specify to create specifications")
         steps_lines.append("   - Use /plan to create implementation plans")
         steps_lines.append("   - Use /tasks to generate tasks")
+    elif selected_ai == "codex":
+        steps_lines.append(f"{step_num}. Open in your editor and start using / commands with Codex CLI")
+        steps_lines.append("   - Type / in any file to see available commands")
+        steps_lines.append("   - Use /specify to create specifications")
+        steps_lines.append("   - Use /plan to create implementation plans")
+        steps_lines.append("   - Use /tasks to generate tasks")
+        steps_lines.append("   - See CODEX.md for all available commands")
     elif selected_ai == "gemini":
         steps_lines.append(f"{step_num}. Use / commands with Gemini CLI")
         steps_lines.append("   - Run gemini /specify to create specifications")
@@ -855,11 +948,17 @@ def check():
     console.print("\n[cyan]Optional AI tools:[/cyan]")
     claude_ok = check_tool("claude", "Install from: https://docs.anthropic.com/en/docs/claude-code/setup")
     gemini_ok = check_tool("gemini", "Install from: https://github.com/google-gemini/gemini-cli")
+    # For Codex, try probing command availability via --version for a stricter check
+    try:
+        _ = run_command(["codex", "--version"], check_return=True, capture=True)
+        codex_ok = True
+    except Exception:
+        codex_ok = False
     
     console.print("\n[green]✓ Specify CLI is ready to use![/green]")
     if not git_ok:
         console.print("[yellow]Consider installing git for repository management[/yellow]")
-    if not (claude_ok or gemini_ok):
+    if not (claude_ok or gemini_ok or codex_ok):
         console.print("[yellow]Consider installing an AI assistant for the best experience[/yellow]")
 
 
