@@ -407,12 +407,17 @@ def download_template_from_github(ai_assistant: str, download_dir: Path, *, verb
         raise typer.Exit(1)
     
     # Find the template asset for the specified AI assistant
-    # Map codex to claude assets until a dedicated Codex package is published
-    asset_ai = "claude" if ai_assistant == "codex" else ai_assistant
-    pattern = f"spec-kit-template-{asset_ai}"
+    # Prefer native Codex asset; gracefully fall back to Claude if unavailable
+    assets = release_data.get("assets", [])
+    preferred_patterns: list[str]
+    if ai_assistant == "codex":
+        preferred_patterns = ["spec-kit-template-codex", "spec-kit-template-claude"]
+    else:
+        preferred_patterns = [f"spec-kit-template-{ai_assistant}"]
+
     matching_assets = [
-        asset for asset in release_data.get("assets", [])
-        if pattern in asset["name"] and asset["name"].endswith(".zip")
+        asset for asset in assets
+        if any(p in asset["name"] for p in preferred_patterns) and asset["name"].endswith(".zip")
     ]
     
     if not matching_assets:
@@ -833,6 +838,7 @@ def init(
         steps_lines.append("   - Use /specify to create specifications")
         steps_lines.append("   - Use /plan to create implementation plans")
         steps_lines.append("   - Use /tasks to generate tasks")
+        steps_lines.append("   - See CODEX.md for all available commands")
     elif selected_ai == "gemini":
         steps_lines.append(f"{step_num}. Use / commands with Gemini CLI")
         steps_lines.append("   - Run gemini /specify to create specifications")

@@ -124,7 +124,18 @@ jobs:
         mkdir -p sdd-claude-package/.claude/commands
         generate_commands "claude" "md" "\$ARGUMENTS" "sdd-claude-package/.claude/commands"
         echo "Created Claude Code package"
-        
+
+        # Create Codex CLI package
+        mkdir -p sdd-codex-package
+        cp -r sdd-package-base/* sdd-codex-package/
+        mkdir -p sdd-codex-package/.codex/commands
+        generate_commands "codex" "md" "\$ARGUMENTS" "sdd-codex-package/.codex/commands"
+        # If there is a prebuilt CODEX.md, place it in the root for convenience
+        if [ -f "agent_templates/codex/CODEX.md" ]; then
+          cp agent_templates/codex/CODEX.md sdd-codex-package/CODEX.md
+        fi
+        echo "Created Codex CLI package"
+
         # Create Gemini CLI package  
         mkdir -p sdd-gemini-package
         cp -r sdd-package-base/* sdd-gemini-package/
@@ -144,6 +155,8 @@ jobs:
         
         # Create archive files for each package
         cd sdd-claude-package && zip -r ../spec-kit-template-claude-${{ steps.get_tag.outputs.new_version }}.zip . && cd ..
+
+        cd sdd-codex-package && zip -r ../spec-kit-template-codex-${{ steps.get_tag.outputs.new_version }}.zip . && cd ..
         
         cd sdd-gemini-package && zip -r ../spec-kit-template-gemini-${{ steps.get_tag.outputs.new_version }}.zip . && cd ..
         
@@ -152,6 +165,8 @@ jobs:
         # List contents for verification
         echo "Claude package contents:"
         unzip -l spec-kit-template-claude-${{ steps.get_tag.outputs.new_version }}.zip | head -10
+        echo "Codex package contents:"
+        unzip -l spec-kit-template-codex-${{ steps.get_tag.outputs.new_version }}.zip | head -10
         echo "Gemini package contents:"
         unzip -l spec-kit-template-gemini-${{ steps.get_tag.outputs.new_version }}.zip | head -10
         echo "Copilot package contents:"
@@ -179,11 +194,12 @@ jobs:
         cat > release_notes.md << EOF
         Template release ${{ steps.get_tag.outputs.new_version }}
         
-        Updated specification-driven development templates for GitHub Copilot, Claude Code, and Gemini CLI.
+        Updated specification-driven development templates for GitHub Copilot, Claude Code, Codex CLI, and Gemini CLI.
         
         Download the template for your preferred AI assistant:
         - spec-kit-template-copilot-${{ steps.get_tag.outputs.new_version }}.zip
         - spec-kit-template-claude-${{ steps.get_tag.outputs.new_version }}.zip
+        - spec-kit-template-codex-${{ steps.get_tag.outputs.new_version }}.zip
         - spec-kit-template-gemini-${{ steps.get_tag.outputs.new_version }}.zip  
         EOF
         
@@ -200,6 +216,7 @@ jobs:
         gh release create ${{ steps.get_tag.outputs.new_version }} \
           spec-kit-template-copilot-${{ steps.get_tag.outputs.new_version }}.zip \
           spec-kit-template-claude-${{ steps.get_tag.outputs.new_version }}.zip \
+          spec-kit-template-codex-${{ steps.get_tag.outputs.new_version }}.zip \
           spec-kit-template-gemini-${{ steps.get_tag.outputs.new_version }}.zip \
           --title "Spec Kit Templates - $VERSION_NO_V" \
           --notes-file release_notes.md
