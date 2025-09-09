@@ -223,6 +223,8 @@ At this stage, your project folder contents should resemble the following:
     └── tasks-template.md
 ```
 
+Note: If you’re using Codex, your scripts directory will also include `scripts/update-codex-md.sh`.
+
 ### **STEP 2:** Functional specification clarification
 
 With the baseline specification created, you can go ahead and clarify any of the requirements that were not captured properly within the first shot attempt. For example, you could use a prompt like this within the same Claude Code session:
@@ -282,6 +284,8 @@ The output of this step will include a number of implementation detail documents
     ├── spec-template.md
     └── tasks-template.md
 ```
+
+Note: Depending on your AI agent, you will see the corresponding agent file (e.g., `CLAUDE.md`, `CODEX.md`, `GEMINI.md`, or `.github/copilot-instructions.md`).
 
 Check the `research.md` document to ensure that the right tech stack is used, based on your instructions. You can ask Claude Code to refine it if any of the components stand out, or even have it check the locally-installed version of the platform/framework you want to use (e.g., .NET).
 
