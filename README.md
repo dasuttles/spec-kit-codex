@@ -110,7 +110,7 @@ Our research and experimentation focus on:
 ## 🔧 Prerequisites
 
 - **Linux/macOS** (or WSL2 on Windows)
-- AI coding agent: [Claude Code](https://www.anthropic.com/claude-code), [GitHub Copilot](https://code.visualstudio.com/), or [Gemini CLI](https://github.com/google-gemini/gemini-cli)
+- AI coding agent: [Claude Code](https://www.anthropic.com/claude-code), [Codex CLI](https://github.com/openai/codex), [GitHub Copilot](https://code.visualstudio.com/), or [Gemini CLI](https://github.com/google-gemini/gemini-cli)
 - [uv](https://docs.astral.sh/uv/) for package management
 - [Python 3.11+](https://www.python.org/downloads/)
 - [Git](https://git-scm.com/downloads)
@@ -145,16 +145,19 @@ You will be prompted to select the AI agent you are using. You can also proactiv
 
 ```bash
 specify init <project_name> --ai claude
+specify init <project_name> --ai codex
 specify init <project_name> --ai gemini
 specify init <project_name> --ai copilot
 # Or in current directory:
 specify init --here --ai claude
+specify init --here --ai codex
 ```
 
-The CLI will check if you have Claude Code or Gemini CLI installed. If you do not, or you prefer to get the templates without checking for the right tools, use `--ignore-agent-tools` with your command:
+The CLI will check if you have Claude Code, Codex CLI, or Gemini CLI installed. If you do not, or you prefer to get the templates without checking for the right tools, use `--ignore-agent-tools` with your command:
 
 ```bash
 specify init <project_name> --ai claude --ignore-agent-tools
+specify init <project_name> --ai codex --ignore-agent-tools
 ```
 
 ### **STEP 1:** Bootstrap the project
