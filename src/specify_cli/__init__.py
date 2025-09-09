@@ -788,6 +788,42 @@ def init(
         try:
             download_and_extract_template(project_path, selected_ai, here, verbose=False, tracker=tracker)
 
+            # Auto-create agent context file for Codex if missing (parity with other agents)
+            if selected_ai == "codex":
+                codex_file = project_path / "CODEX.md"
+                if not codex_file.exists():
+                    try:
+                        tpl = project_path / "templates" / "agent-file-template.md"
+                        if tpl.exists():
+                            content = tpl.read_text(encoding="utf-8")
+                            from datetime import datetime
+                            today = datetime.now().strftime("%Y-%m-%d")
+                            replacements = {
+                                "[PROJECT NAME]": project_path.name,
+                                "[DATE]": today,
+                                "[EXTRACTED FROM ALL PLAN.MD FILES]": "- Pending plan (to be updated after /plan)",
+                                "[ACTUAL STRUCTURE FROM PLANS]": "src/\ntests/",
+                                "[ONLY COMMANDS FOR ACTIVE TECHNOLOGIES]": "# Add commands for your active technologies",
+                                "[LANGUAGE-SPECIFIC, ONLY FOR LANGUAGES IN USE]": "Follow standard conventions",
+                                "[LAST 3 FEATURES AND WHAT THEY ADDED]": "- Initial setup",
+                            }
+                            for k, v in replacements.items():
+                                content = content.replace(k, v)
+                        else:
+                            # Minimal fallback content
+                            content = (
+                                f"# {project_path.name} Development Guidelines\n\n"
+                                "Auto-generated. Last updated: n/a\n\n"
+                                "## Commands\nAdd commands for your active technologies here.\n\n"
+                                "<!-- MANUAL ADDITIONS START -->\n<!-- MANUAL ADDITIONS END -->\n"
+                            )
+                        codex_file.write_text(content, encoding="utf-8")
+                        # Record as part of extraction summary
+                        tracker.update_detail = getattr(tracker, "update_detail", None)
+                    except Exception:
+                        # Non-fatal: continue even if file creation fails
+                        pass
+
             # Git step
             if not no_git:
                 tracker.start("git")
