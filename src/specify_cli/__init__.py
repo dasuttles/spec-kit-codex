@@ -824,6 +824,40 @@ def init(
                         # Non-fatal: continue even if file creation fails
                         pass
 
+                # Ensure .codex/commands exist (generate or mirror Claude commands)
+                try:
+                    codex_cmd_dir = project_path / ".codex" / "commands"
+                    if not codex_cmd_dir.exists():
+                        codex_cmd_dir.mkdir(parents=True, exist_ok=True)
+                        # Preferred: generate from templates/commands if available in package (usually excluded in release)
+                        cmds_tpl_dir = project_path / "templates" / "commands"
+                        if cmds_tpl_dir.exists():
+                            def _extract_body(text: str) -> str:
+                                # Strip simple front-matter --- blocks; keep body
+                                parts = text.split("---\n")
+                                if len(parts) >= 3:
+                                    body = "---\n".join(parts[2:])
+                                else:
+                                    body = text
+                                return body.replace("{ARGS}", "$ARGUMENTS").strip()
+                            for name in ["specify", "plan", "tasks"]:
+                                src = cmds_tpl_dir / f"{name}.md"
+                                if src.exists():
+                                    body = _extract_body(src.read_text(encoding="utf-8"))
+                                    (codex_cmd_dir / f"{name}.md").write_text(body, encoding="utf-8")
+                        else:
+                            # Fallback: mirror from .claude/commands if present
+                            claude_cmd_dir = project_path / ".claude" / "commands"
+                            if claude_cmd_dir.exists():
+                                for name in ["specify", "plan", "tasks"]:
+                                    src = claude_cmd_dir / f"{name}.md"
+                                    if src.exists():
+                                        dst = codex_cmd_dir / f"{name}.md"
+                                        dst.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+                except Exception:
+                    # Best-effort; continue
+                    pass
+
             # Git step
             if not no_git:
                 tracker.start("git")
