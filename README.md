@@ -285,6 +285,40 @@ The output of this step will include a number of implementation detail documents
     └── tasks-template.md
 ```
 
+If you are using Codex CLI, the layout will mirror this, with Codex-specific files and folder names:
+
+```text
+.
+├── CODEX.md
+├── .codex
+│   └── commands
+├── memory
+│   ├── constitution.md
+│   └── constitution_update_checklist.md
+├── scripts
+│   ├── check-task-prerequisites.sh
+│   ├── common.sh
+│   ├── create-new-feature.sh
+│   ├── get-feature-paths.sh
+│   ├── setup-plan.sh
+│   └── update-codex-md.sh
+├── specs
+│   └── 001-create-taskify
+│       ├── contracts
+│       │   ├── api-spec.json
+│       │   └── signalr-spec.md
+│       ├── data-model.md
+│       ├── plan.md
+│       ├── quickstart.md
+│       ├── research.md
+│       └── spec.md
+└── templates
+    ├── CODEX-template.md
+    ├── plan-template.md
+    ├── spec-template.md
+    └── tasks-template.md
+```
+
 Note: Depending on your AI agent, you will see the corresponding agent file (e.g., `CLAUDE.md`, `CODEX.md`, `GEMINI.md`, or `.github/copilot-instructions.md`).
 
 Check the `research.md` document to ensure that the right tech stack is used, based on your instructions. You can ask Claude Code to refine it if any of the components stand out, or even have it check the locally-installed version of the platform/framework you want to use (e.g., .NET).
