@@ -51,7 +51,8 @@ import readchar
 AI_CHOICES = {
     "copilot": "GitHub Copilot",
     "claude": "Claude Code",
-    "gemini": "Gemini CLI"
+    "gemini": "Gemini CLI",
+    "codex": "Codex CLI",
 }
 
 # ASCII Art Banner
@@ -406,7 +407,9 @@ def download_template_from_github(ai_assistant: str, download_dir: Path, *, verb
         raise typer.Exit(1)
     
     # Find the template asset for the specified AI assistant
-    pattern = f"spec-kit-template-{ai_assistant}"
+    # Map codex to claude assets until a dedicated Codex package is published
+    asset_ai = "claude" if ai_assistant == "codex" else ai_assistant
+    pattern = f"spec-kit-template-{asset_ai}"
     matching_assets = [
         asset for asset in release_data.get("assets", [])
         if pattern in asset["name"] and asset["name"].endswith(".zip")
@@ -638,7 +641,7 @@ def download_and_extract_template(project_path: Path, ai_assistant: str, is_curr
 @app.command()
 def init(
     project_name: str = typer.Argument(None, help="Name for your new project directory (optional if using --here)"),
-    ai_assistant: str = typer.Option(None, "--ai", help="AI assistant to use: claude, gemini, or copilot"),
+    ai_assistant: str = typer.Option(None, "--ai", help="AI assistant to use: claude, gemini, copilot, or codex"),
     ignore_agent_tools: bool = typer.Option(False, "--ignore-agent-tools", help="Skip checks for AI agent tools like Claude Code"),
     no_git: bool = typer.Option(False, "--no-git", help="Skip git repository initialization"),
     here: bool = typer.Option(False, "--here", help="Initialize project in the current directory instead of creating a new one"),
@@ -648,7 +651,7 @@ def init(
     
     This command will:
     1. Check that required tools are installed (git is optional)
-    2. Let you choose your AI assistant (Claude Code, Gemini CLI, or GitHub Copilot)
+    2. Let you choose your AI assistant (Claude Code, Codex CLI, Gemini CLI, or GitHub Copilot)
     3. Download the appropriate template from GitHub
     4. Extract the template to a new project directory or current directory
     5. Initialize a fresh git repository (if not --no-git and no existing repo)
@@ -661,6 +664,7 @@ def init(
         specify init my-project --ai copilot --no-git
         specify init --ignore-agent-tools my-project
         specify init --here --ai claude
+        specify init --here --ai codex
         specify init --here
     """
     # Show banner first
@@ -736,6 +740,13 @@ def init(
         elif selected_ai == "gemini":
             if not check_tool("gemini", "Install from: https://github.com/google-gemini/gemini-cli"):
                 console.print("[red]Error:[/red] Gemini CLI is required for Gemini projects")
+                agent_tool_missing = True
+        elif selected_ai == "codex":
+            # For Codex CLI, probe via `codex --version` for a positive detection
+            try:
+                _ = run_command(["codex", "--version"], check_return=True, capture=True)
+            except Exception:
+                console.print("[red]Error:[/red] Codex CLI not found or not working. Install from: https://github.com/openai/codex")
                 agent_tool_missing = True
         # GitHub Copilot check is not needed as it's typically available in supported IDEs
         
@@ -816,6 +827,12 @@ def init(
         steps_lines.append("   - Use /specify to create specifications")
         steps_lines.append("   - Use /plan to create implementation plans")
         steps_lines.append("   - Use /tasks to generate tasks")
+    elif selected_ai == "codex":
+        steps_lines.append(f"{step_num}. Open in your editor and start using / commands with Codex CLI")
+        steps_lines.append("   - Type / in any file to see available commands")
+        steps_lines.append("   - Use /specify to create specifications")
+        steps_lines.append("   - Use /plan to create implementation plans")
+        steps_lines.append("   - Use /tasks to generate tasks")
     elif selected_ai == "gemini":
         steps_lines.append(f"{step_num}. Use / commands with Gemini CLI")
         steps_lines.append("   - Run gemini /specify to create specifications")
@@ -855,11 +872,17 @@ def check():
     console.print("\n[cyan]Optional AI tools:[/cyan]")
     claude_ok = check_tool("claude", "Install from: https://docs.anthropic.com/en/docs/claude-code/setup")
     gemini_ok = check_tool("gemini", "Install from: https://github.com/google-gemini/gemini-cli")
+    # For Codex, try probing command availability via --version for a stricter check
+    try:
+        _ = run_command(["codex", "--version"], check_return=True, capture=True)
+        codex_ok = True
+    except Exception:
+        codex_ok = False
     
     console.print("\n[green]✓ Specify CLI is ready to use![/green]")
     if not git_ok:
         console.print("[yellow]Consider installing git for repository management[/yellow]")
-    if not (claude_ok or gemini_ok):
+    if not (claude_ok or gemini_ok or codex_ok):
         console.print("[yellow]Consider installing an AI assistant for the best experience[/yellow]")
 
 
