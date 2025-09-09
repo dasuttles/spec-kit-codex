@@ -93,10 +93,35 @@ jobs:
           echo "⚠️ agent_templates/claude folder not found"
         fi
         
+        # Helper: generate commands from templates/commands for specific agent
+        generate_commands() {
+          local ext=$1
+          local arg_format=$2
+          local output_dir=$3
+
+          mkdir -p "$output_dir"
+
+          for template in templates/commands/*.md; do
+            if [[ -f "$template" ]]; then
+              name=$(basename "$template" .md)
+              description=$(awk '/^description:/ {gsub(/^description: *"?/, ""); gsub(/"$/, ""); print; exit}' "$template" | tr -d '\r')
+              content=$(awk '/^---$/{if(++count==2) start=1; next} start' "$template" | sed "s/{ARGS}/$arg_format/g")
+
+              # For Codex and Claude we emit plain markdown prompt files
+              {
+                echo "$content"
+              } > "$output_dir/$name.md"
+            fi
+          done
+        }
+
         # Create Codex CLI package
         echo "Creating Codex CLI package..."
         mkdir -p sdd-codex-package
         cp -r sdd-package-base/* sdd-codex-package/
+        # Generate .codex/commands from templates
+        mkdir -p sdd-codex-package/.codex/commands
+        generate_commands "md" "\$ARGUMENTS" "sdd-codex-package/.codex/commands"
         if [ -d "agent_templates/codex" ]; then
           cp -r agent_templates/codex sdd-codex-package/.codex
           # Move CODEX.md to root for easier access if present
@@ -104,12 +129,7 @@ jobs:
             mv sdd-codex-package/.codex/CODEX.md sdd-codex-package/CODEX.md
             echo "✓ Moved CODEX.md to root of Codex package"
           fi
-          # Remove empty .codex folder if it only contained CODEX.md
-          if [ -d "sdd-codex-package/.codex" ] && [ -z "$(find sdd-codex-package/.codex -type f)" ]; then
-            rm -rf sdd-codex-package/.codex
-            echo "✓ Removed empty .codex folder"
-          fi
-          echo "✓ Added Codex CLI commands ($(find agent_templates/codex -type f | wc -l) files)"
+          echo "✓ Added Codex CLI extras from agent_templates/codex ($(find agent_templates/codex -type f | wc -l) files)"
         else
           echo "⚠️ agent_templates/codex folder not found"
         fi
